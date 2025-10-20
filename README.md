@@ -20,7 +20,7 @@ A RESTful API service that analyzes strings and stores their computed properties
 
 1. Clone the repository:
 ```bash
-git clone <your-repo-url>
+git clone [(https://github.com/Pearlblazecoder/HNG_TASK_ONE)]
 cd string-analyzer-api
 Create virtual environment:
 
@@ -80,3 +80,6 @@ AWS Elastic Beanstalk
 PythonAnywhere
 
 DigitalOcean App Platform
+
+But was deployed on Pythonanywhere
+Live_url [(https://stringanalyzer.pythonanywhere.com/)]
