@@ -5,11 +5,11 @@ import json
 class StringAnalysis(models.Model):
     value = models.TextField(unique=True)
     length = models.IntegerField()
-    is_palindrome = models.BooleanField() 
-    word_count = models.IntegerField()  
-    unique_char_count = models.IntegerField()  
-    character_frequency = models.JSONField()  
-    sha256_hash = models.CharField(max_length=64, unique=True) 
+    is_palindrome = models.BooleanField()
+    word_count = models.IntegerField()
+    unique_char_count = models.IntegerField()
+    character_frequency = models.JSONField()
+    sha256_hash = models.CharField(max_length=64, unique=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

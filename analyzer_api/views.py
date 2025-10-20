@@ -2,10 +2,9 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from django.urls import get_resolver
-from analyzer_api.serializers import StringAnalysisSerializer
 
 from .models import StringAnalysis
+from .serializers import StringAnalysisSerializer
 from .filters import StringAnalysisFilter
 from .services import StringAnalysisService
 
@@ -19,7 +18,7 @@ class StringAnalysisListCreateView(generics.ListCreateAPIView):
         return StringAnalysis.objects.all().order_by('-created_at')
     
     def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
+        queryset = self.filter_queryset(self.get_queryset())
         filters_applied = {}
         valid_params = ['is_palindrome', 'min_length', 'max_length', 'word_count', 'contains_character']
         
@@ -30,31 +29,44 @@ class StringAnalysisListCreateView(generics.ListCreateAPIView):
                     filters_applied[param] = value.lower() == 'true'
                 else:
                     filters_applied[param] = value
+        
+        serializer = self.get_serializer(queryset, many=True)
         return Response({
-            "data": response.data,
-            "count": len(response.data),
+            "data": serializer.data,
+            "count": queryset.count(),
             "filters_applied": filters_applied
         })
     
     def create(self, request, *args, **kwargs):
-        value = request.data.get('value')
+        if 'value' not in request.data:
+            return Response(
+                {"error": "Missing 'value' field"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
+        if not isinstance(request.data.get('value'), str):
+            return Response(
+                {"error": "Value must be a string"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        
+        value = request.data.get('value')
         analysis, error, status_code = StringAnalysisService.create_string_analysis(value)
         
         if error:
             return Response(error, status=status_code)
         
         serializer = self.get_serializer(analysis)
-        return Response(serializer.data, status=status_code)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class StringAnalysisRetrieveDeleteView(APIView):
     """
-    Combined view for GET and DELETE on /strings/{string_value}/
+    GET /strings/{string_value} - Get specific string analysis
+    DELETE /strings/{string_value} - Delete specific string analysis
     """
     
     def get(self, request, string_value, format=None):
-        """GET /strings/{string_value} - Get specific string analysis"""
         analysis, error, status_code = StringAnalysisService.get_string_analysis(string_value)
         
         if error:
@@ -64,13 +76,12 @@ class StringAnalysisRetrieveDeleteView(APIView):
         return Response(serializer.data)
     
     def delete(self, request, string_value, format=None):
-        """DELETE /strings/{string_value} - Delete specific string analysis"""
         success, error, status_code = StringAnalysisService.delete_string_analysis(string_value)
         
         if error:
             return Response(error, status=status_code)
         
-        return Response(status=status_code)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class NaturalLanguageFilterView(APIView):
@@ -80,6 +91,12 @@ class NaturalLanguageFilterView(APIView):
     
     def get(self, request, format=None):
         query = request.GET.get('query', '').strip()
+        
+        if not query:
+            return Response(
+                {"error": "Query parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         queryset, interpreted_query, error, status_code = StringAnalysisService.get_natural_language_results(query)
         
@@ -94,33 +111,6 @@ class NaturalLanguageFilterView(APIView):
         })
 
 
-class StringAnalysisBulkView(APIView):
-    """
-    Additional bulk operations (optional enhancement)
-    """
-    
-    def get(self, request, format=None):
-        """GET /strings/bulk - Get multiple analyses by IDs or values"""
-        ids = request.GET.getlist('id')
-        values = request.GET.getlist('value')
-        hashes = request.GET.getlist('hash')
-        
-        queryset = StringAnalysis.objects.all()
-        
-        if ids:
-            queryset = queryset.filter(id__in=ids)
-        if values:
-            queryset = queryset.filter(value__in=values)
-        if hashes:
-            queryset = queryset.filter(sha256_hash__in=hashes)
-        
-        serializer = StringAnalysisSerializer(queryset, many=True)
-        return Response({
-            "data": serializer.data,
-            "count": queryset.count()
-        })
-
-
 class HealthCheckView(APIView):
     """
     Health check endpoint
@@ -132,23 +122,4 @@ class HealthCheckView(APIView):
             "total_analyses": StringAnalysis.objects.count(),
             "service": "String Analyzer API",
             "version": "1.0.0"
-        })
-        
-class URLDebugView(APIView):
-    def get(self, request):
-        resolver = get_resolver()
-        url_list = []
-        
-        def extract_patterns(patterns, prefix=''):
-            for pattern in patterns:
-                if hasattr(pattern, 'pattern'):
-                    url_list.append(f"{prefix}{pattern.pattern}")
-                if hasattr(pattern, 'url_patterns'):
-                    extract_patterns(pattern.url_patterns, f"{prefix}{pattern.pattern}")
-        
-        extract_patterns(resolver.url_patterns)
-        return Response({
-            "registered_urls": url_list,
-            "requested_path": request.path,
-            "app_name": "analyzer_api"
         })

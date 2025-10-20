@@ -1,14 +1,6 @@
 from rest_framework import serializers
 from .models import StringAnalysis
 
-class StringInputSerializer(serializers.Serializer):
-    value = serializers.CharField(required=True, allow_blank=False, trim_whitespace=False)
-    
-    def validate_value(self, value):
-        if not isinstance(value, str):
-            raise serializers.ValidationError("Value must be a string")
-        return value
-
 class StringAnalysisSerializer(serializers.ModelSerializer):
     id = serializers.CharField(source='sha256_hash', read_only=True)
     properties = serializers.SerializerMethodField()
