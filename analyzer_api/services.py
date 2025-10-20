@@ -47,7 +47,7 @@ class StringAnalysisService:
             analysis.delete()
             return True, None, 204
         except StringAnalysis.DoesNotExist:
-            return False, {"error": "String analysis not found"}, 404
+            return False, {"error": "String does not exist in the system"}, 404
     
     @staticmethod
     def _find_analysis(identifier):
@@ -57,7 +57,7 @@ class StringAnalysisService:
         except StringAnalysis.DoesNotExist:
             if len(identifier) == 64 and all(c in '0123456789abcdef' for c in identifier.lower()):
                 return StringAnalysis.objects.get(sha256_hash=identifier)
-            raise StringAnalysis.DoesNotExist("String analysis not found")
+            raise StringAnalysis.DoesNotExist("String does not exist in the system")
     
     @staticmethod
     def get_filtered_analyses(filters):

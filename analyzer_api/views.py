@@ -2,6 +2,7 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from django.core.exceptions import ValidationError
 
 from .models import StringAnalysis
 from .serializers import StringAnalysisSerializer
@@ -17,7 +18,29 @@ class StringAnalysisListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         return StringAnalysis.objects.all().order_by('-created_at')
     
+    def validate_query_parameters(self, request):
+        """
+        Validate that only allowed query parameters are present
+        """
+        valid_params = ['is_palindrome', 'min_length', 'max_length', 'word_count', 'contains_character']
+        provided_params = list(request.GET.keys())
+        invalid_params = [param for param in provided_params if param not in valid_params]
+        
+        if invalid_params:
+            raise ValidationError(
+                f"Invalid query parameter(s): {', '.join(invalid_params)}. "
+                f"Allowed parameters are: {', '.join(valid_params)}"
+            )
+    
     def list(self, request, *args, **kwargs):
+        try:
+            self.validate_query_parameters(request)
+        except ValidationError as e:
+            return Response({
+                "error": "Invalid query parameter values or types",
+                "message": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         queryset = self.filter_queryset(self.get_queryset())
         filters_applied = {}
         valid_params = ['is_palindrome', 'min_length', 'max_length', 'word_count', 'contains_character']
